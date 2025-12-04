@@ -1,12 +1,10 @@
 import { Router, Request, Response } from "express";
+import { CreateUserController } from "./controllers/user/CreateUserController";
+import { CreateUserSchema } from "./schemas/userSchema";
+import { validateSchema } from "./middlewares/validateSchema";
 
 const router = Router();
 
-router.post('/users', (req: Request, res: Response) => {
-    const { name, email, password } = req.body;
-    const user = { id: 1, name, email, password };
-    console.log(user); 
-    res.status(201).json({ message: "Funcionando" });
-});
+router.post('/users', validateSchema(CreateUserSchema), new CreateUserController().handle);
 
 export { router };
