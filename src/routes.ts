@@ -1,10 +1,13 @@
 import { Router, Request, Response } from "express";
 import { CreateUserController } from "./controllers/user/CreateUserController";
-import { CreateUserSchema } from "./schemas/userSchema";
+import { createUserSchema, authUserSchema } from "./schemas/userSchema";
 import { validateSchema } from "./middlewares/validateSchema";
+import { AuthUserController } from "./controllers/user/AuthUserController";
 
 const router = Router();
 
-router.post('/users', validateSchema(CreateUserSchema), new CreateUserController().handle);
+router.post('/users', validateSchema(createUserSchema), new CreateUserController().handle);
+router.post("/session", validateSchema(authUserSchema), new AuthUserController().handle);
+
 
 export { router };

@@ -10,7 +10,7 @@ app.use(cors());
 
 app.use(router);
 
-app.use((error: Error, _: Request, res: Response) => {
+app.use((error: Error, _: Request, res: Response, next: NextFunction) => {
     if (error instanceof Error) {
         return res.status(400).json({
             error: error.message
