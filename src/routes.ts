@@ -14,6 +14,6 @@ const router = Router();
 router.post('/users', validateSchema(createUserSchema), new CreateUserController().handle);
 router.post("/session", validateSchema(authUserSchema), new AuthUserController().handle);
 router.get("/me", isAuthenticated, new DetailUserController().handle)
-router.post("/category", isAuthenticated, isAdmin,validateSchema(createCategorySchema), new CreateCategoryController().handle)
+router.post("/category", isAuthenticated, isAdmin, validateSchema(createCategorySchema), new CreateCategoryController().handle)
 
 export { router };
