@@ -77,9 +77,14 @@ backend/
 │   │   └── express/
 │   │       └── index.d.ts   # Extensão do tipo Request do Express
 │   ├── config/              # Arquivos de configuração
+│   │   ├── multer.ts        # Configuração de upload de arquivos
+│   │   └── cloudinary.ts    # Configuração do Cloudinary
 │   ├── controllers/         # Controllers (camada de apresentação)
 │   │   ├── category/
-│   │   │   └── CreateCategoryController.ts
+│   │   │   ├── CreateCategoryController.ts
+│   │   │   └── ListCategoriesController.ts
+│   │   ├── product/
+│   │   │   └── CreateProductController.ts
 │   │   └── user/
 │   │       ├── AuthUserController.ts
 │   │       ├── CreateUserController.ts
@@ -95,10 +100,14 @@ backend/
 │   ├── routes.ts            # Definição de todas as rotas
 │   ├── schemas/             # Schemas de validação (Zod)
 │   │   ├── categorySchema.ts
+│   │   ├── productSchema.ts
 │   │   └── userSchema.ts
 │   ├── services/            # Services (lógica de negócio)
 │   │   ├── category/
-│   │   │   └── CreateCategoryService.ts
+│   │   │   ├── CreateCategoryService.ts
+│   │   │   └── ListCategoriesService.ts
+│   │   ├── product/
+│   │   │   └── CreateProductService.ts
 │   │   └── user/
 │   │       ├── AuthUserService.ts
 │   │       ├── CreateUserService.ts
@@ -129,10 +138,12 @@ backend/
 | `@prisma/adapter-pg` | ^7.1.0 | Adaptador PostgreSQL para Prisma |
 | `@prisma/client` | ^7.1.0 | Cliente Prisma ORM |
 | `bcryptjs` | ^3.0.3 | Criptografia de senhas |
+| `cloudinary` | ^2.8.0 | Armazenamento e gerenciamento de imagens |
 | `cors` | ^2.8.5 | Configuração CORS |
 | `dotenv` | ^17.2.3 | Gerenciamento de variáveis de ambiente |
 | `express` | ^5.2.1 | Framework web Node.js |
 | `jsonwebtoken` | ^9.0.3 | Geração e validação de JWT |
+| `multer` | ^2.0.2 | Middleware para upload de arquivos |
 | `pg` | ^8.16.3 | Driver PostgreSQL |
 | `tsx` | ^4.21.0 | Executor TypeScript |
 | `zod` | ^4.1.13 | Validação de schemas |
@@ -144,6 +155,7 @@ backend/
 | `@types/cors` | ^2.8.19 | Tipos TypeScript para CORS |
 | `@types/express` | ^5.0.6 | Tipos TypeScript para Express |
 | `@types/jsonwebtoken` | ^9.0.10 | Tipos TypeScript para JWT |
+| `@types/multer` | ^2.0.0 | Tipos TypeScript para Multer |
 | `@types/node` | ^24.10.1 | Tipos TypeScript para Node.js |
 | `@types/pg` | ^8.15.6 | Tipos TypeScript para PostgreSQL |
 | `prisma` | ^7.1.0 | CLI do Prisma |
@@ -514,6 +526,131 @@ Authorization: Bearer <token>
 
 ---
 
+#### 5. Listar Categorias
+
+```http
+GET /category
+```
+
+**Autenticação**: Requerida (`isAuthenticated`)
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Resposta de Sucesso (200):**
+```json
+[
+  {
+    "id": "uuid",
+    "name": "string",
+    "createdAt": "datetime"
+  }
+]
+```
+
+**Resposta de Erro (401):**
+```json
+{
+  "error": "Token não fornecido"
+}
+```
+ou
+```json
+{
+  "error": "Token inválido"
+}
+```
+
+---
+
+#### 6. Criar Produto
+
+```http
+POST /product
+```
+
+**Autenticação**: Requerida (`isAuthenticated` + `isAdmin`)
+
+**Validação**: `createProductSchema`
+
+**Headers:**
+```
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+```
+
+**Body (Form Data):**
+```
+name: string (obrigatório)
+price: string (obrigatório)
+description: string (obrigatório)
+category_id: string (obrigatório, UUID válido)
+file: File (imagem obrigatória)
+```
+
+**Resposta de Sucesso (200):**
+```json
+{
+  "id": "uuid",
+  "name": "string",
+  "price": number,
+  "description": "string",
+  "category_id": "uuid",
+  "banner": "string (URL da imagem)",
+  "createdAt": "datetime"
+}
+```
+
+**Resposta de Erro (400):**
+```json
+{
+  "error": "Erro validação",
+  "details": [
+    {
+      "mensagem": "O nome do produto é obrigatório"
+    }
+  ]
+}
+```
+
+**Resposta de Erro (400):**
+```json
+{
+  "error": "A imagem do produto é obrigatória"
+}
+```
+
+**Resposta de Erro (400):**
+```json
+{
+  "error": "Categoria não encontrada"
+}
+```
+
+**Resposta de Erro (400):**
+```json
+{
+  "error": "Formato de arquvi inválido, use apenas jpeg, jpg e png"
+}
+```
+
+**Resposta de Erro (401):**
+```json
+{
+  "error": "Usuário sem permissão"
+}
+```
+
+**Notas:**
+- O upload de imagem é obrigatório e deve ser enviado como `multipart/form-data`
+- Formatos aceitos: JPEG, JPG, PNG
+- Tamanho máximo: 4MB
+- A imagem é enviada para o Cloudinary e a URL retornada é salva nos campos `image` e `banner` do produto
+
+---
+
 ## ✅ Validação de Schemas
 
 O projeto utiliza **Zod** (v4.1.13) para validação de schemas. Os schemas são aplicados através do middleware `validateSchema`.
@@ -594,6 +731,31 @@ z.object({
 
 **Validações:**
 - `name`: String com mínimo de 2 caracteres
+
+---
+
+#### createProductSchema
+
+**Arquivo**: `src/schemas/productSchema.ts`
+
+```typescript
+z.object({
+  body: z.object({
+    name: z.string().min(1, { message: "O nome do produto é obrigatório" }),
+    price: z.string().min(1, { message: "O valor do produto é obrigatório" }),
+    description: z.string().min(1, { message: "A descrição do produto é obrigatório" }),
+    category_id: z.string().min(1, { message: "A categoria do produto é obrigatório" })
+  })
+})
+```
+
+**Validações:**
+- `name`: String obrigatória (mínimo 1 caractere)
+- `price`: String obrigatória (mínimo 1 caractere)
+- `description`: String obrigatória (mínimo 1 caractere)
+- `category_id`: String obrigatória (mínimo 1 caractere, deve ser UUID válido)
+
+**Nota**: A validação do arquivo de imagem é feita no controller, não no schema.
 
 ---
 
@@ -713,6 +875,11 @@ DATABASE_URL="postgresql://user:password@localhost:5432/database?schema=public"
 # JWT
 JWT_SECRET="seu_secret_jwt_aqui"
 
+# Cloudinary (Upload de Imagens)
+CLOUDINARY_CLOUD_NAME="seu_cloud_name"
+CLOUDINARY_API_KEY="sua_api_key"
+CLOUDINARY_API_SECRET="seu_api_secret"
+
 # Server
 PORT=3333
 ```
@@ -737,6 +904,30 @@ PORT=3333
 - **Provider**: PostgreSQL
 - **Client Output**: `../src/generated/prisma`
 - **Adapter**: `@prisma/adapter-pg`
+
+### Upload de Arquivos
+
+**Arquivo**: `src/config/multer.ts`
+
+**Configurações:**
+- **Storage**: `memoryStorage()` (armazena arquivos em memória)
+- **Limite de Tamanho**: 4MB por arquivo
+- **Formatos Permitidos**: JPEG, JPG, PNG
+- **Validação**: Verifica o mimetype do arquivo antes do upload
+
+**Arquivo**: `src/config/cloudinary.ts`
+
+**Configurações:**
+- **Provider**: Cloudinary v2
+- **Pasta de Upload**: `products/`
+- **Nome do Arquivo**: `${Date.now()}-${imageName}` (timestamp + nome original)
+- **Tipo de Recurso**: `image`
+
+**Fluxo de Upload:**
+1. Arquivo é recebido via Multer (armazenado em memória)
+2. Buffer é convertido em stream
+3. Stream é enviado para Cloudinary
+4. URL da imagem é retornada e salva no banco de dados
 
 ### Servidor Express
 
@@ -792,5 +983,6 @@ declare namespace Express {
 
 **Última atualização**: Dezembro 2024
 **Versão do documento**: 1.0.0
+
 
 
