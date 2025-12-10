@@ -15,6 +15,7 @@ import { CreateProductController } from "./controllers/product/CreateProductCont
 import { ListProductsController } from "./controllers/product/ListProductsController";
 import { createProductSchema } from "./schemas/productSchema";
 import { DeleteProductController } from "./controllers/product/DeleteProductController";
+import { ListProductsByCategoryController } from "./controllers/product/ListProductsByCategoryController";
 
 
 
@@ -26,6 +27,7 @@ router.post("/session", validateSchema(authUserSchema), new AuthUserController()
 router.get("/me", isAuthenticated, new DetailUserController().handle)
 router.get("/category", isAuthenticated, new ListCategoriesController().handle)
 router.post("/category", isAuthenticated, isAdmin, validateSchema(createCategorySchema), new CreateCategoryController().handle)
+router.get("/category/product", isAuthenticated, new ListProductsByCategoryController().handle)
 router.get("/products", isAuthenticated, new ListProductsController().handle)
 router.post("/product", isAuthenticated, isAdmin, upload.single('file'), new CreateProductController().handle, validateSchema(createProductSchema))
 router.delete("/product", isAuthenticated, isAdmin, new DeleteProductController().handle)
